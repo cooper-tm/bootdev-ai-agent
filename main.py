@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from prompts import system_prompt
+
 
 def main():
     print("Hello from test-agent!")
@@ -27,12 +29,14 @@ def main():
     user_prompt = args.user_prompt
 
     messages = [
+        {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
 
     response = client.chat.completions.create(
         model="openrouter/free",
         messages=messages,
+        temperature=0,
     )
 
     prompt_tokens = response.usage.prompt_tokens
