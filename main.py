@@ -1,10 +1,12 @@
 import argparse
 import os
+import sys
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
 from call_function import available_functions, call_function
+from config import MAX_ITERS
 from prompts import system_prompt
 
 
@@ -33,6 +35,30 @@ def main():
         {"role": "user", "content": user_prompt},
     ]
 
+    if args.verbose:
+        print(f"User prompt: {args.user_prompt}\n")
+
+    for _ in range(MAX_ITERS):
+        try:
+            final_response = generate_content(client, messages, args.verbose)
+            if final_response:
+                print("Final response:")
+                print(final_response)
+                return
+        except Exception as e:
+            print(f"Error in generate_content: {e}")
+
+    print(f"Maximum iterations ({MAX_ITERS}) reached")
+    sys.exit(1)
+
+
+def generate_content(client: OpenAI, messages: list, verbose: bool) -> str | None:
+    response = client.chat.completions.create(
+        model="openrouter/free",
+        messages=messages,
+        tools=available_functions,
+    )
+
     response = client.chat.completions.create(
         model="openrouter/free",
         messages=messages,
@@ -41,24 +67,28 @@ def main():
     )
 
     message = response.choices[0].message
+    messages.append(message)
+
     if not message.tool_calls:
-        print(f"Response:\n{response.choices[0].message.content}")
+        return message.content
 
     for tool_call in message.tool_calls:
-        result_message = call_function(tool_call, args.verbose)
+        result_message = call_function(tool_call, verbose)
         if not result_message.get("content"):
             raise RuntimeError("no content")
-        if args.verbose:
+        if verbose:
             print(f"-> {result_message['content']}")
+        messages.append(result_message)
 
-    if response.usage is None:
+    return None
+
+    if not response.usage:
         raise RuntimeError("usage property is empty")
 
     prompt_tokens = response.usage.prompt_tokens
     response_tokens = response.usage.completion_tokens
 
-    if args.verbose:
-        print(f"User prompt:\n{user_prompt}")
+    if verbose:
         print(f"Prompt tokens: {prompt_tokens}")
         print(f"Response tokens: {response_tokens}")
 
