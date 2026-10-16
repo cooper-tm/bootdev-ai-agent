@@ -1,11 +1,10 @@
 import argparse
-import json
 import os
 
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from call_function import available_functions
+from call_function import available_functions, call_function
 from prompts import system_prompt
 
 
@@ -14,7 +13,7 @@ def main():
 
     load_dotenv()
     api_key = os.environ.get("OPENROUTER_API_KEY")
-    if api_key == None:
+    if api_key is None:
         raise RuntimeError("key not found")
 
     client = OpenAI(
@@ -27,7 +26,6 @@ def main():
     parser.add_argument("--verbose", action="store_true", help="Enable verbose output")
     args = parser.parse_args()
 
-    # prompt = "Why is Boot.dev such a great place to learn backend development? Use one paragraph maximum."
     user_prompt = args.user_prompt
 
     messages = [
@@ -43,22 +41,26 @@ def main():
     )
 
     message = response.choices[0].message
+    if not message.tool_calls:
+        print(f"Response:\n{response.choices[0].message.content}")
+
     for tool_call in message.tool_calls:
-        function_args = json.loads(tool_call.function.arguments or "{}")
-        print(f"Calling function: {tool_call.function.name}({function_args})")
+        result_message = call_function(tool_call, args.verbose)
+        if not result_message.get("content"):
+            raise RuntimeError("no content")
+        if args.verbose:
+            print(f"-> {result_message['content']}")
+
+    if response.usage is None:
+        raise RuntimeError("usage property is empty")
 
     prompt_tokens = response.usage.prompt_tokens
     response_tokens = response.usage.completion_tokens
-
-    if response.usage == None:
-        raise RuntimeError("usage property is empty")
 
     if args.verbose:
         print(f"User prompt:\n{user_prompt}")
         print(f"Prompt tokens: {prompt_tokens}")
         print(f"Response tokens: {response_tokens}")
-
-    print(f"Response:\n{response.choices[0].message.content}")
 
 
 if __name__ == "__main__":

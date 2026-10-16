@@ -52,20 +52,21 @@ schema_run_python_file = {
     "type": "function",
     "function": {
         "name": "run_python_file",
-        "description": "Used to run arbitrary code from the working directory",
+        "description": "Executes a specified Python file within the working directory and returns its output",
         "parameters": {
             "type": "object",
             "properties": {
                 "file_path": {
                     "type": "string",
-                    "description": "File path to specified file, relative to the working directory",
+                    "description": "Path to the Python file to run, relative to the working directory",
                 },
                 "args": {
                     "type": "array",
                     "items": "string",
-                    "description": "Additional arguments provided for command list",
+                    "description": "Optional list of arguments to pass to the Python script",
                 },
             },
+            "required": ["file_path"],
         },
     },
 }
